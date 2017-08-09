@@ -33,22 +33,34 @@ class SlackUploader
   # Upload to a new channel. If the channel name conflicts, create a channel
   # "_ex_X", otherwise create directly.
   def upload_channel(channel)
-    name = channel.name
+    sync_record = destination_slack.channel_syncs.find_or_initialize_by(slack_channel_id: channel.id)
+    if sync_record.new_record?
+      name = channel.name
 
-    if known_channels.has_key?(channel.name)
-      name = "_ex_#{name}"[0...21]
+      if known_channels.has_key?(channel.name)
+        name = "_ex_#{name}"[0...21]
+      end
+
+      target_channel = api.create_channel(channel.channel_type, name)
+      sync_record.target_channel_id = target_channel["id"]
+      sync_record.save!
     end
-
-    target_channel = api.create_channel(channel.channel_type, name)
-    target_channel_id = target_channel["id"]
 
     channel.slack_messages
       .includes(:slack_user)
+      .after(sync_record.last_timestamp_seconds, sync_record.last_timestamp_fraction)
       .time_order
       .each do |old_message|
         new_message_body = convert_message(old_message)
-        api.post_message(target_channel_id, new_message_body)
-      end
+        api.post_message(sync_record.target_channel_id, new_message_body)
+
+        # Uploading messages is a slow process. We'd like to be able to cancel
+        # and continue any time, so keep the last timestamp up to date
+        # throughout the process.
+        sync_record.last_timestamp_seconds  = old_message.timestamp_seconds
+        sync_record.last_timestamp_fraction = old_message.timestamp_fraction
+        sync_record.save!
+    end
   end
 
   def convert_message(old_message)

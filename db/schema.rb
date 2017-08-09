@@ -10,7 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20170803041914) do
+ActiveRecord::Schema.define(version: 20170809091519) do
+
+  create_table "channel_syncs", force: :cascade do |t|
+    t.integer "slack_instance_id"
+    t.integer "slack_channel_id"
+    t.string "target_channel_id", null: false
+    t.integer "last_timestamp_seconds", default: 0, null: false
+    t.integer "last_timestamp_fraction", default: 1, null: false
+    t.index ["slack_channel_id"], name: "index_channel_syncs_on_slack_channel_id"
+    t.index ["slack_instance_id"], name: "index_channel_syncs_on_slack_instance_id"
+  end
 
   create_table "slack_channels", force: :cascade do |t|
     t.integer "slack_instance_id", null: false

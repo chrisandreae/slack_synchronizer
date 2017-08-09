@@ -5,7 +5,10 @@ class SlackMessage < ApplicationRecord
   belongs_to :slack_file, optional: true
 
   scope :time_order, ->{ order(:timestamp_seconds, :timestamp_fraction) }
-  
+  scope :after, ->(seconds, fraction) do
+    where("(timestamp_seconds > ? OR (timestamp_seconds = ? AND timestamp_fraction > ?))", seconds, seconds, fraction)
+  end
+
   def api_timestamp
     sprintf("%d.%06d", timestamp_seconds, timestamp_fraction)
   end
