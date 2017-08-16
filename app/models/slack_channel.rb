@@ -1,3 +1,15 @@
+# == Schema Information
+#
+# Table name: slack_channels
+#
+#  id                :integer          not null, primary key
+#  slack_instance_id :integer          not null
+#  slack_id          :string           not null
+#  channel_type      :string           not null
+#  name              :string           not null
+#  channel_body      :text             not null
+#
+
 class SlackChannel < ApplicationRecord
   serialize :channel_body, JSON
 

@@ -1,3 +1,17 @@
+# == Schema Information
+#
+# Table name: slack_messages
+#
+#  id                 :integer          not null, primary key
+#  slack_channel_id   :string           not null
+#  slack_user_id      :string
+#  slack_file_id      :string
+#  timestamp_seconds  :integer          not null
+#  timestamp_fraction :integer          not null
+#  message_text       :text
+#  message_body       :text             not null
+#
+
 class SlackMessage < ApplicationRecord
   serialize :message_body, JSON
   belongs_to :slack_channel
