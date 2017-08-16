@@ -28,6 +28,21 @@ namespace :slack do
     SlackUpdater.transfer_messages(source, destination, types: types)
   end
 
+  desc "Update and transfer messages in specified channels from source to destination Slack instance"
+  task :transfer_channels, [:source, :destination, :channels] => [:environment] do |t, args|
+    source      = args.fetch(:source)
+    destination = args.fetch(:destination)
+    channels    = [args.fetch(:channels), *args.extras]
+    SlackUpdater.transfer_channels(source, destination, channels: channels)
+  end
+
+  desc "List channels in a slack instance"
+  task :list_channels, [:source, :types] => [:environment] do |t, args|
+    source = args.fetch(:source)
+    types  = fetch_types(args, SlackDownloader::DEFAULT_TYPES)
+    SlackUpdater.list_channels(source, types: types)
+  end
+
   private
   # Any number of types may be provided, varargs parameter is implemented using
   # `args.extras`.

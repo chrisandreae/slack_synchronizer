@@ -55,6 +55,7 @@ gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
 
 gem 'htmlentities'
 gem 'ansi-to-html'
+gem 'terminal-table'
 
 gem 'acts_as_manual_list', git: 'https://github.com/iknow/acts_as_manual_list', branch: 'master'
 gem 'iknow_view_models', git: 'https://github.com/iknow/iknow_view_models', branch: 'master'

@@ -51,8 +51,6 @@ class SlackDownloader
     end
   end
 
-  private
-
   def refresh_users
     SlackUser.transaction do
       @user_cache = slack.slack_users.index_by(&:slack_id)
@@ -67,6 +65,27 @@ class SlackDownloader
       @user_cache.values
     end
   end
+
+  def refresh_channels(type)
+    SlackChannel.transaction do
+      # Note that multi-party IM aren't a real type here; they count as 'group'
+      find_type = [type]
+      find_type << :mpims if type == :groups
+      cache = slack.slack_channels.where(channel_type: find_type).index_by(&:slack_id)
+      @channel_cache[type] = cache
+
+      channel_bodies = api.list_channels(type)
+
+      channel_bodies.each do |channel_body|
+        channel_id = channel_body["id"]
+        cache[channel_id] = save_channel(type, channel_body, cached: cache[channel_id])
+      end
+
+      cache.values
+    end
+  end
+
+  private
 
   def save_user(user_body, cached: nil)
     user_id = user_body["id"]
@@ -90,25 +109,6 @@ class SlackDownloader
   rescue SlackAPI::Error => e
     return nil if e.reason == 'user_not_found'
     raise
-  end
-
-  def refresh_channels(type)
-    SlackChannel.transaction do
-      # Note that multi-party IM aren't a real type here; they count as 'group'
-      find_type = [type]
-      find_type << :mpims if type == :groups
-      cache = slack.slack_channels.where(channel_type: find_type).index_by(&:slack_id)
-      @channel_cache[type] = cache
-
-      channel_bodies = api.list_channels(type)
-
-      channel_bodies.each do |channel_body|
-        channel_id = channel_body["id"]
-        cache[channel_id] = save_channel(type, channel_body, cached: cache[channel_id])
-      end
-
-      cache.values
-    end
   end
 
   def save_channel(type, channel_body, cached: nil)
