@@ -8,6 +8,9 @@ class SlackAPI
 
   IM_LIST_API         = 'im.list'
   IM_HISTORY_API      = 'im.history'
+  IM_OPEN_API         = 'im.open'
+
+  MPIM_OPEN_API       = 'mpim.open'
 
   GROUP_LIST_API      = 'groups.list'
   GROUP_HISTORY_API   = 'groups.history'
@@ -51,6 +54,14 @@ class SlackAPI
 
   def post_message(channel_id, message_body)
     api_get(POST_MESSAGE_API, channel: channel_id, link_names: true, unfurl_media: true, **message_body)
+  end
+
+  def open_im(user_id)
+    api_get(IM_OPEN_API, user: user_id, return_im: true).fetch("channel")
+  end
+
+  def open_mpim(user_ids)
+    api_get(MPIM_OPEN_API, users: user_ids.join(",")).fetch("group")
   end
 
   def list_channels(chat_type)

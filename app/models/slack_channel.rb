@@ -15,4 +15,13 @@ class SlackChannel < ApplicationRecord
 
   belongs_to :slack_instance
   has_many :slack_messages, dependent: :destroy
+
+  def member_ids
+    case channel_type
+    when "ims"
+      [channel_body["user"]]
+    else
+      channel_body["members"]
+    end
+  end
 end

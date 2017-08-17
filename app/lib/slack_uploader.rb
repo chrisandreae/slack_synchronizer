@@ -46,6 +46,29 @@ class SlackUploader
       sync_record.save!
     end
 
+    upload_messages(channel, sync_record)
+  end
+
+  def upload_direct_messages(channel, target_users)
+    target_users = Array.wrap(target_users)
+
+    sync_record = destination_slack.channel_syncs.find_or_initialize_by(slack_channel_id: channel.id)
+    if sync_record.new_record?
+      target_channel =
+        if target_users.size > 1
+          api.open_mpim(target_users.map(&:slack_id))
+        else
+          api.open_im(target_users.first.slack_id)
+        end
+
+      sync_record.target_channel_id = target_channel["id"]
+      sync_record.save!
+    end
+
+    upload_messages(channel, sync_record)
+  end
+
+  def upload_messages(channel, sync_record)
     channel.slack_messages
       .includes(:slack_user)
       .after(sync_record.last_timestamp_seconds, sync_record.last_timestamp_fraction)

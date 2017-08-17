@@ -20,12 +20,12 @@ namespace :slack do
     SlackUpdater.update_all(download_files: false, types: types)
   end
 
-  desc "Update and transfer messages from source to destination Slack instance"
-  task :transfer_messages, [:source, :destination, :types] => [:environment] do |t, args|
+  desc "Update and transfer messages in all channels of specified type from source to destination Slack instance"
+  task :transfer, [:source, :destination, :types] => [:environment] do |t, args|
     source      = args.fetch(:source)
     destination = args.fetch(:destination)
     types       = fetch_types(args, SlackUploader::DEFAULT_TYPES)
-    SlackUpdater.transfer_messages(source, destination, types: types)
+    SlackUpdater.transfer(source, destination, types: types)
   end
 
   desc "Update and transfer messages in specified channels from source to destination Slack instance"
@@ -36,11 +36,26 @@ namespace :slack do
     SlackUpdater.transfer_channels(source, destination, channels: channels)
   end
 
+  desc "Update and transfer direct messages in a single specified channel to the specified users in the destination slack"
+  task :transfer_direct_messages, [:source, :destination, :channel, :users] => [:environment] do |t, args|
+    source      = args.fetch(:source)
+    destination = args.fetch(:destination)
+    channel     = args.fetch(:channel)
+    users       = [args.fetch(:users), *args.extras]
+    SlackUpdater.transfer_direct_messages(source, destination, channel: channel, target_users: users)
+  end
+
   desc "List channels in a slack instance"
   task :list_channels, [:source, :types] => [:environment] do |t, args|
     source = args.fetch(:source)
     types  = fetch_types(args, SlackDownloader::DEFAULT_TYPES)
     SlackUpdater.list_channels(source, types: types)
+  end
+
+  desc "List users in a slack instance"
+  task :list_users, [:source] => [:environment] do |t, args|
+    source = args.fetch(:source)
+    SlackUpdater.list_users(source)
   end
 
   private
