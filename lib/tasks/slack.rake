@@ -45,6 +45,13 @@ namespace :slack do
     SlackUpdater.transfer_direct_messages(source, destination, channel: channel, target_users: users)
   end
 
+  desc "Show best-effort mapping for direct messages"
+  task :show_direct_message_mapping, [:source, :destination] => [:environment] do |t, args|
+    source      = args.fetch(:source)
+    destination = args.fetch(:destination)
+    SlackUpdater.show_direct_message_mapping(source, destination)
+  end
+
   desc "List channels in a slack instance"
   task :list_channels, [:source, :types] => [:environment] do |t, args|
     source = args.fetch(:source)

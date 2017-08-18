@@ -14,4 +14,13 @@ class SlackUser < ApplicationRecord
 
   belongs_to :slack_instance
   has_many :slack_messages, dependent: :nullify
+
+  # Best effort to name the user
+  def name
+    if (real_name = user_body["real_name"]).present?
+      real_name
+    else
+      user_name
+    end
+  end
 end

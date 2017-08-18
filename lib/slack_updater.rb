@@ -50,6 +50,37 @@ class SlackUpdater
     SlackUploader.new(source, destination).upload_direct_messages(slack_channel, slack_users)
   end
 
+  def self.show_direct_message_mapping(source_name, destination_name)
+    source = SlackInstance.find_by!(name: source_name)
+    destination = SlackInstance.find_by!(name: destination_name)
+
+    SlackDownloader.new(destination).refresh_users
+
+    source_dl = SlackDownloader.new(source)
+    source_dl.refresh_users
+    source_dl.refresh_channels(:ims)
+    source_dl.refresh_channels(:mpims)
+
+    source_users = source.slack_users.index_by(&:slack_id)
+    destination_users = destination.slack_users.index_by(&:user_name)
+
+    # For each channel, if we can map the users to users with identical usernames, sync.
+    source.slack_channels.where(channel_type: [:ims, :mpims]).each do |channel|
+      ids = channel.member_ids
+
+      from = ids.map { |id| source_users[id] }
+      to   = from.map { |user| destination_users[user&.user_name] }
+
+      name = ->(usr){ usr.try { |u| "#{u.name} (#{u.user_name})" } || "<missing user>" }
+      mapping = from.zip(to).map { |s, d| "#{name.(s)} => #{name.(d)}" }
+      target_ids = to.map { |d| d&.slack_id || "____" }
+
+      puts "Channel #{channel.name}: #{mapping.join(", ")}"
+      puts "    rake 'slack:transfer_direct_messages[#{source_name},#{destination_name},#{channel.slack_id},#{target_ids.join(",")}]'"
+      puts
+    end
+  end
+
   def self.list_channels(source_name, types:)
     source = SlackInstance.find_by!(name: source_name)
     dl = SlackDownloader.new(source)
