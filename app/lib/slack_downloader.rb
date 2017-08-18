@@ -4,18 +4,15 @@ class SlackDownloader
   attr_reader :api, :slack
 
   def initialize(slack_instance)
-    @slack = slack_instance
-    @api = SlackAPI.new(slack_instance.api_key)
-    @user_cache = {}
-    @channel_cache = {}
+    @slack         = slack_instance
+    @api           = SlackAPI.new(slack_instance.api_key)
+    @user_cache    = {}
+    @channel_cache = {}.with_indifferent_access
   end
 
   def update(download_files: true, types: DEFAULT_TYPES)
     refresh_users
-
-    Set.new([:channels, *types]).each do |type|
-      refresh_channels(type)
-    end
+    refresh_channels(:channels)
 
     types.each do |type|
       update_channels(type, download_files: download_files)
@@ -24,9 +21,7 @@ class SlackDownloader
 
   # Update all channels of the specified type
   def update_channels(type, download_files: true)
-    refresh_channels(type) unless @channel_cache[type].present?
-
-    @channel_cache[type].each_value do |channel|
+    channels(type).each do |channel|
       SlackChannel.transaction do
         update_channel(channel, download_files: download_files)
       end
@@ -35,13 +30,12 @@ class SlackDownloader
 
   # update the specified channel
   def update_channel(channel, download_files: true)
-    @download_files = download_files
     last_message = channel.slack_messages.time_order.last
     fetch_from = last_message&.api_timestamp || SlackAPI::BEGINNING
 
     message_bodies = api.get_channel_history(channel.channel_type, channel.slack_id, from: fetch_from)
     message_bodies.each do |message_body|
-      save_message(channel, message_body)
+      save_message(channel, message_body, download_files: download_files)
     end
   end
 
@@ -66,23 +60,38 @@ class SlackDownloader
     end
   end
 
+  def users
+    refresh_users unless @user_cache.present?
+    @user_cache.values
+  end
+
   def refresh_channels(type)
+    # Note that multi-party IM aren't a real type here; they count as 'group'
+    return refresh_channels(:groups) if type == :mpims
+
     SlackChannel.transaction do
-      # Note that multi-party IM aren't a real type here; they count as 'group'
-      find_type = [type]
-      find_type << :mpims if type == :groups
-      cache = slack.slack_channels.where(channel_type: find_type).index_by(&:slack_id)
-      @channel_cache[type] = cache
+      find_types = [type]
+      find_types << :mpims if type == :groups
+
+      find_types.each { |t| @channel_cache[t] ||= {} }
+
+      slack.slack_channels.where(channel_type: find_types).each do |channel|
+        @channel_cache[channel.channel_type][channel.slack_id] = channel
+      end
 
       channel_bodies = api.list_channels(type)
 
       channel_bodies.each do |channel_body|
-        channel_id = channel_body["id"]
-        cache[channel_id] = save_channel(type, channel_body, cached: cache[channel_id])
+        channel_id   = channel_body["id"]
+        channel_type = SlackChannel.refine_channel_type(type, channel_body)
+        @channel_cache[channel_type][channel_id] = save_channel(type, channel_body, cached: @channel_cache[channel_type][channel_id])
       end
-
-      cache.values
     end
+  end
+
+  def channels(type)
+    refresh_channels(type) unless @channel_cache[type].present?
+    @channel_cache[type].values
   end
 
   private
@@ -115,12 +124,7 @@ class SlackDownloader
     channel_id = channel_body["id"]
     channel = cached || slack.slack_channels.find_or_initialize_by(slack_id: channel_id)
 
-    channel.channel_type =
-      if channel_body["is_mpim"]
-        "mpims"
-      else
-        type
-      end
+    channel.channel_type = SlackChannel.refine_channel_type(type, channel_body).to_s
 
     channel.name =
       if channel_body["is_im"]
@@ -151,7 +155,7 @@ class SlackDownloader
     raise
   end
 
-  def save_message(channel, message_body)
+  def save_message(channel, message_body, download_files: true)
     user_id = message_body["user"] ||
               message_body.dig("comment", "user")
 
@@ -186,7 +190,7 @@ class SlackDownloader
     case message_body["subtype"]
     when "file_share"
       file_body = message_body["file"]
-      message.slack_file = save_file(file_body)
+      message.slack_file = save_file(file_body, download: download_files)
     end
 
     message.save!
@@ -214,7 +218,7 @@ class SlackDownloader
     "thumb_480", "thumb_360", "thumb_160",
     "thumb_80", "thumb_64"]
 
-  def save_file(file_body)
+  def save_file(file_body, download: true)
     file_id = file_body["id"]
 
     file = slack.slack_files.find_or_initialize_by(slack_id: file_id)
@@ -232,7 +236,7 @@ class SlackDownloader
       file.file_body = file_body
       file.save!
 
-      if @download_files && slack_mirror_url
+      if download && slack_mirror_url
         download_file(file)
       end
     end

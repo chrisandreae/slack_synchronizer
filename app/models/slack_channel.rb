@@ -16,6 +16,14 @@ class SlackChannel < ApplicationRecord
   belongs_to :slack_instance
   has_many :slack_messages, dependent: :destroy
 
+  def self.refine_channel_type(type, channel_body)
+    if channel_body["is_mpim"]
+      :mpims
+    else
+      type
+    end
+  end
+
   def member_ids
     case channel_type
     when "ims"
