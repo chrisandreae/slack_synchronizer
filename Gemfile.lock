@@ -124,7 +124,8 @@ GEM
       racc (~> 1.4)
     oj (3.7.12)
     public_suffix (3.1.0)
-    puma (3.12.6)
+    puma (4.3.8)
+      nio4r (~> 2.0)
     racc (1.5.2)
     rack (2.2.3)
     rack-test (1.1.0)
@@ -221,7 +222,7 @@ DEPENDENCIES
   iknow_view_models
   jbuilder (~> 2.5)
   listen (>= 3.0.5, < 3.2)
-  puma (~> 3.12)
+  puma (~> 4.3)
   rails (~> 5.1.2)
   sass-rails (~> 5.0)
   selenium-webdriver
